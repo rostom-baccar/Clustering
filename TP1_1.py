@@ -94,9 +94,8 @@ def kmeans_iteration( loaded_data , k ):
 #%%
 #2.2 Intérêts de la méthode k-Means
 # Automatically determine the best number of clusters
-#Testing different evaluation metrics on 
 
-#A function that tests different numbers of clusters and 
+#Function that given a method, tests different numbers of clusters and plots the corresponding score
 def kmeans_evaluation_graph(method,loaded_data,max_k):
     k_list = []
     score_sil = []
@@ -107,17 +106,19 @@ def kmeans_evaluation_graph(method,loaded_data,max_k):
     
     for i in range(2,max_k):
         
-        if (method == "kmeans" :
-        kmeans_return = kmeans_iteration(loaded_data,i)
+        if (method == "kmeans") :
+            km_return = kmeans_iteration(loaded_data,i)
+        else :
+            km_return = kmedoids_iteration(loaded_data,i)
         
         k_list.append(i)
-        runtime_list.append(kmeans_return["tps"])
+        runtime_list.append(km_return["tps"])
         
         #Silouhette index: the higher the index the better the clustering
-        score_sil.append(metrics.silhouette_score(loaded_data["data"], kmeans_return["labels"], metric='euclidean'))
+        score_sil.append(metrics.silhouette_score(loaded_data["data"], km_return["labels"], metric='euclidean'))
         
         #Davies Bouldin index: the lower the index the better the clustering
-        score_dav.append(davies_bouldin_score(loaded_data["data"], kmeans_return["labels"]))
+        score_dav.append(davies_bouldin_score(loaded_data["data"], km_return["labels"]))
         
         if (score_sil[i-2] > best) :
             best = score_sil[i-2]
@@ -131,11 +132,10 @@ def kmeans_evaluation_graph(method,loaded_data,max_k):
 
 #25
 
-kmeans_evaluation_graph(loaded_r15,25)
+kmeans_evaluation_graph("kmeans",loaded_r15,25)
 
 
 #%%
-
 
 # 2.3 : Limits k-Means
 # Dataset spiral
@@ -172,111 +172,61 @@ def kmedoids_iteration ( loaded_data , k ):
     return d
 
 
-#%%
-kmeans_evaluation_graph()
-#%%
-#Testing different evaluation metrics
-k_list = []
-score_sil = []
-score_dav = []
-runtime_list=[]
-best=0
-best_k=0
-for k in range(2,20):
-    tps1 = time.time()
-    
-    distmatrix = euclidean_distances( data_r15 )
-    fp = kmedoids.fasterpam( distmatrix , k )
-    tps2 = time.time()
-    iter_kmed = fp.n_iter
-    labels_kmed = fp.labels
-    #print ( " Loss with FasterPAM : " , fp.loss )
-    plt.scatter ( f0_r15 , f1_r15 , c = labels_kmed , s = 8 )
-    plt . title ( " Donnees apres clustering KMedoids " )
-    plt . show ()
-    #print ( " nb clusters = " ,k , " , nb iter = " , iter_kmed , " ,runtime = " , round (( tps2 - tps1 ) * 1000 , 2 ) ," ms " )
-    
-    
-    k_list.append(k)
-    runtime_list.append(round((tps2-tps1),2))
-    
-    
-    #Silouhette index: the higher the index the better the clustering
-    score_sil.append(metrics.silhouette_score(data_r15, labels_kmed, metric='euclidean'))
-    
-    #David Bouldin index: the lower the index the better the clustering
-    #score_dav.append(davies_bouldin_score(data, labels))
-    if (score_sil[k-2] > best) :
-        best = score_sil[k-2]
-        best_k=k
 
-plt.plot(k_list,score_sil,label ='Score Silhouette')
-#plt.plot(k_list,score_dav)
-plt.plot(k_list,runtime_list,label ='Runtime')
-print(best,best_k)
-plt.legend()
+#%%
+#Testing different evaluation metricson kmedoids
+kmeans_evaluation_graph("kmedoids",loaded_r15,20)
+
 
 #%%
 
 #Rand score k_means and kmedoids , k=15
+
 # K-means
-print("Appel kMeans pour une valeur fixée de k")
-tps1 = time.time()
-k = 15
-model = cluster.KMeans(n_clusters=k, init='k-means++')
-model.fit(data)
-tps2=time.time()
-labels_k_means=model.labels_
-iteration=model.n_iter_
-
-plt.scatter(f0, f1, c=labels_k_means, s=8)
-plt.title("Données après clustering Kmeans")
-plt.show()
-print("nb clusters=",k," nb_iter=",iteration, "runtime=",round((tps2-tps1)*1000,2),"ms")
-
+kmeans_return = kmeans_iteration(loaded_r15, 3)
 
 # kmedoids
-tps1 = time.time()
-k=15
-distmatrix = euclidean_distances( data )
-fp = kmedoids.fasterpam( distmatrix , k )
-tps2 = time.time()s1 = time.time()
-model = cluster.AgglomerativeClustering(linkage = 'single',
-                                        n_clusters = k )
-model = model.fit(data)
-tps2 = time.time()
-labels = model.labels_
-kres = model.n_clusters_
-leaves = model.n_leaves_
-# Affichage clustering
-plt.scatter(f0,f1,c = labels,s = 8 )
-plt.title ("Resultat du clustering ")
-plt.show()
-print (" nb clusters = " ,k , " , nb feuilles = " , leaves ," runtime = " , round (( tps2 - tps1 ) * 1000 , 2 ) ," ms " )
-
-iter_kmed = fp.n_iter
-labels_kmed = fp.labels
-print ( " Loss with FasterPAM : " , fp.loss )
-plt . scatter ( f0 , f1 , c = labels_kmed , s = 8 )
-plt . title ( " Donnees apres clustering KMedoids " )
-plt . show ()
-print ( " nb clusters = " ,k , " , nb iter = " , iter_kmed , " ,runtime = " , round (( tps2 - tps1 ) * 1000 , 2 ) ," ms " )
-
+kmedoids_return = kmedoids_iteration(loaded_r15, 3)
 
 # Rand_score application
 print("rand_score: ",metrics.rand_score(labels_k_means, labels_kmed))
+
+
 #%%
+
 #3.CLustering Agglomératif
 #3.1
 # Donnees dans datanp
 print ("Dendrogramme * single * donnees initiales " )
-linked_mat = shc.linkage ( data , 'single')
+linked_mat = shc.linkage ( data_r15 , 'single')
 plt.figure(figsize = (12,12))
 shc.dendrogram(linked_mat,
                orientation = 'top' ,
                distance_sort = 'descending' ,
                show_leaf_counts = False)
 plt.show()
+#%%
+def agglomerative_iteration (loaded_data, k ,distance, linkage):
+    tps1 = time.time()
+    model = cluster.AgglomerativeClustering(distance_threshold = i*0.1,
+                                            linkage = l,
+                                            n_clusters = None )
+    model = model.fit(data_r15)
+    tps2 = time.time()
+    labels = model.labels_
+    k = model.n_clusters_
+    leaves =model.n_leaves_
+    # Affichage clustering
+    plt.scatter(f0_r15,f1_r15,c = labels,s = 8 )
+    plt.title ("Resultat du clustering ")
+    plt.show()
+    #print (" nb clusters = " ,k , " , nb feuilles = " , leaves ," runtime = " , round (( tps2 - tps1 ) * 1000 , 2 ) ," ms ", "distance = ",i*0.1 )
+    
+    d={}
+    d["tps"]=round (( tps2 - tps1 ), 2 )
+    d["k"]=k
+
+
 #%%
 #set distance_threshold ( 0 ensures we compute the full tree )
 #Testing different distances
@@ -293,13 +243,13 @@ for l in linkage:
         model = cluster.AgglomerativeClustering(distance_threshold = i*0.1,
                                                 linkage = l,
                                                 n_clusters = None )
-        model = model.fit(data)
+        model = model.fit(data_r15)
         tps2 = time.time()
         labels = model.labels_
         k = model.n_clusters_
         leaves =model.n_leaves_
         # Affichage clustering
-        plt.scatter(f0,f1,c = labels,s = 8 )
+        plt.scatter(f0_r15,f1_r15,c = labels,s = 8 )
         plt.title ("Resultat du clustering ")
         plt.show()
         print (" nb clusters = " ,k , " , nb feuilles = " , leaves ," runtime = " , round (( tps2 - tps1 ) * 1000 , 2 ) ," ms ", "distance = ",i*0.1 )
