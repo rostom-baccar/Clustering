@@ -88,7 +88,6 @@ def kmeans_iteration( loaded_data , k ):
     d["iteration"]= iteration
     d["tps"]= round((tps2-tps1),2)
     
-    
     return d
 
 
@@ -98,7 +97,7 @@ def kmeans_iteration( loaded_data , k ):
 #Testing different evaluation metrics on 
 
 #A function that tests different numbers of clusters and 
-def kmeans_score_graph(loaded_data,max_k):
+def kmeans_evaluation_graph(method,loaded_data,max_k):
     k_list = []
     score_sil = []
     score_dav = []
@@ -108,6 +107,7 @@ def kmeans_score_graph(loaded_data,max_k):
     
     for i in range(2,max_k):
         
+        if (method == "kmeans" :
         kmeans_return = kmeans_iteration(loaded_data,i)
         
         k_list.append(i)
@@ -131,21 +131,16 @@ def kmeans_score_graph(loaded_data,max_k):
 
 #25
 
-kmeans_score_graph(loaded_r15,25)
+kmeans_evaluation_graph(loaded_r15,25)
 
-#%%
-kmeans_score_graph(loaded_spiral,35)
+
 #%%
 
 
 # 2.3 : Limits k-Means
 # Dataset spiral
 
-#2.2 Intérêts de la méthode k-Means
-# Automatically determine the best number of clusters
-#Testing different evaluation metrics
-
-kmeans_score_graph(loaded_spiral,35)
+kmeans_evaluation_graph(loaded_spiral,35)
 
 # For this dataset, the greater the cluster number the greater the score returned by silouhette method, which is not true because 
 # the optimal number of clusters is 2
@@ -155,20 +150,30 @@ kmeans_score_graph(loaded_spiral,35)
 # 2.4 :Méthode k-medoids
 # data r15
 
-    
-tps1 = time.time()
-k = 3
-distmatrix = euclidean_distances( data_r15 )
-fp = kmedoids.fasterpam( distmatrix , k )
-tps2 = time.time()
-iter_kmed = fp.n_iter
-labels_kmed = fp.labels
-print ( " Loss with FasterPAM : " , fp.loss )
-plt . scatter ( f0_r15 , f1_r15 , c = labels_kmed , s = 8 )
-plt . title ( " Donnees apres clustering KMedoids " )
-plt . show ()
-print ( " nb clusters = " ,k , " , nb iter = " , iter_kmed , " ,runtime = " , round (( tps2 - tps1 ) * 1000 , 2 ) ," ms " )
+def kmedoids_iteration ( loaded_data , k ):
+    tps1 = time.time()
 
+    distmatrix = euclidean_distances( loaded_data["data"] )
+    fp = kmedoids.fasterpam( distmatrix , k )
+    tps2 = time.time()
+    iter_kmed = fp.n_iter
+    labels_kmed = fp.labels
+    #print ( " Loss with FasterPAM : " , fp.loss )
+    plt . scatter ( loaded_data["f0"] , loaded_data["f1"] , c = labels_kmed , s = 8 )
+    plt . title ( " Donnees apres clustering KMedoids " )
+    plt . show ()
+    #print ( " nb clusters = " ,k , " , nb iter = " , iter_kmed , " ,runtime = " , round (( tps2 - tps1 ) * 1000 , 2 ) ," ms " )
+    
+    d={}
+    d["labels"]=labels_kmed
+    d["iteration"]= iter_kmed
+    d["tps"]= round((tps2-tps1),2)
+    
+    return d
+
+
+#%%
+kmeans_evaluation_graph()
 #%%
 #Testing different evaluation metrics
 k_list = []
