@@ -1,0 +1,16 @@
+To keep it short: the k-means algorithm is a special form of the well known Expectation Maximization (EM) algorithm and assumes that all clusters are equally sized and have the same variances. In most of the cases this assumption is not satisfied. Clusters will differ in their size, density and variance. Violating this assumption will not make it impossible to use k-means, but one has to be careful interpreting the results!
+
+
+limites:
+
+kmeans: Pas adapté pour déterminer des clusters avec des
+formes non convexes (spirale)
+
++ explication distance
+
+Sensibles aux données bruitées et aux anomalies
+Tous les exemples doivent être inclus dans un cluster
+Données non pertinentes pouvant influencer la valeur moyenne
+
+Sensible au choix des points
+initiaux: aléatoire 
