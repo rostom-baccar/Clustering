@@ -18,7 +18,7 @@ from sklearn.neighbors import NearestNeighbors
 from scipy.io import arff
 
 #%%
-def load_data (name ) :
+def load_arff_data (name ) :
     path = './Bureau/TP-Clustering/artificial/'
     databrut = arff.loadarff(open(path+name+".arff",'r'))
     data = [[x[0],x[1]] for x in databrut[0]]
@@ -30,205 +30,141 @@ def load_data (name ) :
     plt.title("Données initiales")
     plt.show()
     d={}
-    d["data"] =data
+    d["data"] = data
     d["f0"] = f0
     d["f1"] = f1
     
     return d
     
 #%%
-loaded = load_data("spiral")
+loaded_r15 = load_arff_data("R15")
+data_r15 = loaded_r15["data"]
+f0_r15 = loaded_r15["f0"]
+f1_r15 = loaded_r15["f1"]
 
+loaded_d31 = load_arff_data("D31")
+data_d31 = loaded_d31["data"]
+f0_d31 = loaded_d31["f0"]
+f1_d31 = loaded_d31["f1"]
 
-#%%
-#1. Dataset R15
-from scipy.io import arff
-path = './Bureau/TP-Clustering/artificial/'
-databrut = arff.loadarff(open(path+"R15.arff",'r'))
-data_R15 = [[x[0],x[1]] for x in databrut[0]]
+loaded_simplex = load_arff_data("simplex")
+data_simplex = loaded_simplex["data"]
+f0_simplex = loaded_simplex["f0"]
+f1_simplex = loaded_simplex["f1"]
 
-#Affichage 2D
-f0_R15 = [f[0] for f in data_R15]
-f1_R15 = [f[1] for f in data_R15]
-plt.scatter(f0_R15,f1_R15,s=8)
-plt.title("Données initiales")
-plt.show()
-#%%
-#1. Dataset D31
-from scipy.io import arff
-path = './Bureau/TP-Clustering/artificial/'
-databrut = arff.loadarff(open(path+"D31.arff",'r'))
-data_d31 = [[x[0],x[1]] for x in databrut[0]]
+loaded_spiral = load_arff_data("spiral")
+data_spiral = loaded_spiral["data"]
+f0_spiral = loaded_spiral["f0"]
+f1_spiral = loaded_spiral["f1"]
 
-#Affichage 2D
-f0_d31 = [f[0] for f in data_d31]
-f1_d31 = [f[1] for f in data_d31]
-plt.scatter(f0_d31,f1_d31,s=8)
-plt.title("Données initiales")
-plt.show()
-#%%
-#1. Dataset Simplex
-from scipy.io import arff
-path = './Bureau/TP-Clustering/artificial/'
-databrut = arff.loadarff(open(path+"simplex.arff",'r'))
-data_simplex = [[x[0],x[1]] for x in databrut[0]]
+loaded_donut1 = load_arff_data("donut1")
+data_donut1 = loaded_donut1["data"]
+f0_donut1 = loaded_donut1["f0"]
+f1_donut1 = loaded_donut1["f1"]
 
-#Affichage 2D
-f0_simplex = [f[0] for f in data_simplex]
-f1_simplex = [f[1] for f in data_simplex]
-plt.scatter(f0_simplex,f1_simplex,s=8)
-plt.title("Données initiales")
-plt.show()
-
-#%%
-#1. Dataset Spiral
-
-path = './Bureau/TP-Clustering/artificial/'
-databrut = arff.loadarff(open(path+"spiral.arff",'r'))
-data_spiral = [[x[0],x[1]] for x in databrut[0]]
-
-#Affichage 2D
-f0_spiral = [f[0] for f in data_spiral]
-f1_spiral = [f[1] for f in data_spiral]
-plt.scatter(f0_spiral,f1_spiral,s=8)
-plt.title("Données initiales")
-plt.show()
-
-#%%
-#1. Dataset donut1
-from scipy.io import arff
-path = './Bureau/TP-Clustering/artificial/'
-databrut = arff.loadarff(open(path+"donut1.arff",'r'))
-data_donut1 = [[x[0],x[1]] for x in databrut[0]]
-
-#Affichage 2D
-f0_donut1 = [f[0] for f in data_donut1]
-f1_donut1 = [f[1] for f in data_donut1]
-plt.scatter(f0_donut1,f1_donut1,s=8)
-plt.title("Données initiales")
-plt.show()
 
 #%%
 #2. Clustering k-Means & k-Medoids
 #2.1 Pour démarrer
-print("Appel kMeans pour une valeur fixée de k")
-tps1 = time.time()
-k = 3
-model = cluster.KMeans(n_clusters=k, init='k-means++')
-model.fit(data)
-tps2=time.time()
-labels = model.labels_
-iteration=model.n_iter_
+# Function that performs the kmeans algorithm
 
-plt.scatter(f0, f1, c=labels, s=8)
-plt.title("Données après clustering Kmeans")
-plt.show()
-print("nb clusters=",k," nb_iter=",iteration, "runtime=",round((tps2-tps1)*1000,2),"ms")
+def kmeans_iteration( loaded_data , k ):
+    #print("Appel kMeans pour une valeur fixée de k")
+    tps1 = time.time()
+    
+    model = cluster.KMeans(n_clusters=k, init='k-means++')
+    model.fit(loaded_data["data"])
+    tps2=time.time()
+    labels = model.labels_
+    iteration=model.n_iter_
+    
+    plt.scatter(loaded_data["f0"], loaded_data["f1"], c=labels, s=8)
+    plt.title("Données après clustering Kmeans")
+    plt.show()
+    #print("nb clusters=",k," nb_iter=",iteration, "runtime=",round((tps2-tps1)*1000,2),"ms")
+    
+    d={}
+    d["labels"]=labels
+    d["iteration"]= iteration
+    d["tps"]= round((tps2-tps1),2)
+    
+    
+    return d
+
+
 #%%
 #2.2 Intérêts de la méthode k-Means
 # Automatically determine the best number of clusters
-#Testing different evaluation metrics
+#Testing different evaluation metrics on 
 
-score_sil = []
-score_dav = []
-runtime_list=[]
-best=0
-best_k=0
-for k in range(2,25):
-    tps1 = time.time()
-    model = cluster.KMeans(n_clusters=k, init='k-means++')
-    model.fit(data)
-    tps2=time.time()
-    labels=model.labels_
-    iteration=model.n_iter_
+#A function that tests different numbers of clusters and 
+def kmeans_score_graph(loaded_data,max_k):
+    k_list = []
+    score_sil = []
+    score_dav = []
+    runtime_list=[]
+    best=0
+    best_k=0
     
-    plt.scatter(f0, f1, c=labels, s=8)
-    plt.title("Données après clustering Kmeans")
-    plt.show()
-    k_list.append(k)
-    runtime_list.append(round((tps2-tps1)*10,2))
-    #Silouhette index: the higher the index the better the clustering
-    score_sil.append(metrics.silhouette_score(data, labels, metric='euclidean'))
-    
-    #David Bouldin index: the lower the index the better the clustering
-    #score_dav.append(davies_bouldin_score(data, labels))
-    
-    if (score_sil[k-2] > best) :
-        best = score_sil[k-2]
-        best_k=k
-    
+    for i in range(2,max_k):
+        
+        kmeans_return = kmeans_iteration(loaded_data,i)
+        
+        k_list.append(i)
+        runtime_list.append(kmeans_return["tps"])
+        
+        #Silouhette index: the higher the index the better the clustering
+        score_sil.append(metrics.silhouette_score(loaded_data["data"], kmeans_return["labels"], metric='euclidean'))
+        
+        #Davies Bouldin index: the lower the index the better the clustering
+        score_dav.append(davies_bouldin_score(loaded_data["data"], kmeans_return["labels"]))
+        
+        if (score_sil[i-2] > best) :
+            best = score_sil[i-2]
+            best_k=i
+        
+    plt.plot(k_list,score_sil,label ='Score Silhouette')
+    plt.plot(k_list,score_dav, label ='Score Davies-Bouldin')
+    plt.plot(k_list,runtime_list,label ='Runtime (s)')
+    plt.legend()
+    print(best,best_k)
 
-plt.plot(k_list,score_sil)
-#plt.plot(k_list,score_dav)
-plt.plot(k_list,runtime_list)
-print(best,best_k)
+#25
+
+kmeans_score_graph(loaded_r15,25)
 
 #%%
+kmeans_score_graph(loaded_spiral,35)
+#%%
+
+
 # 2.3 : Limits k-Means
 # Dataset spiral
 
-path = './Bureau/TP-Clustering/artificial/'
-databrut = arff.loadarff(open(path+"spiral.arff",'r'))
-data_spiral = [[x[0],x[1]] for x in databrut[0]]
-f0_spiral = [f[0] for f in data]
-f1_spiral = [f[1] for f in data]
-
 #2.2 Intérêts de la méthode k-Means
 # Automatically determine the best number of clusters
 #Testing different evaluation metrics
-k_list = []
-score_sil = []
-score_dav = []
-runtime_list=[]
-best=0
-best_k=0
-for k in range(2,35):
-    tps1 = time.time()
-    model = cluster.KMeans(n_clusters=k, init='k-means++')
-    model.fit(data_spiral)
-    tps2=time.time()
-    labels=model.labels_
-    iteration=model.n_iter_
-    
-    plt.scatter(f0_spiral, f1_spiral, c=labels, s=8)
-    plt.title("Données après clustering Kmeans")
-    plt.show()
-    k_list.append(k)
-    runtime_list.append(round((tps2-tps1),2))
-    #Silouhette index: the higher the index the better the clustering
-    score_sil.append(metrics.silhouette_score(data, labels, metric='euclidean'))
-    
-    #David Bouldin index: the lower the index the better the clustering
-    #score_dav.append(davies_bouldin_score(data, labels))
-    
-    if (score_sil[k-2] > best) :
-        best = score_sil[k-2]
-        best_k=k
-    
 
-plt.plot(k_list,score_sil,label ='Score Silhouette')
-#plt.plot(k_list,score_dav)
-plt.plot(k_list,runtime_list,label ='Runtime')
-plt.legend()
-print(best,best_k)
+kmeans_score_graph(loaded_spiral,35)
 
 # For this dataset, the greater the cluster number the greater the score returned by silouhette method, which is not true because 
 # the optimal number of clusters is 2
 
 
 #%%
-# 2.4 :
+# 2.4 :Méthode k-medoids
+# data r15
 
     
 tps1 = time.time()
 k = 3
-distmatrix = euclidean_distances( data )
+distmatrix = euclidean_distances( data_r15 )
 fp = kmedoids.fasterpam( distmatrix , k )
 tps2 = time.time()
 iter_kmed = fp.n_iter
 labels_kmed = fp.labels
 print ( " Loss with FasterPAM : " , fp.loss )
-plt . scatter ( f0 , f1 , c = labels_kmed , s = 8 )
+plt . scatter ( f0_r15 , f1_r15 , c = labels_kmed , s = 8 )
 plt . title ( " Donnees apres clustering KMedoids " )
 plt . show ()
 print ( " nb clusters = " ,k , " , nb iter = " , iter_kmed , " ,runtime = " , round (( tps2 - tps1 ) * 1000 , 2 ) ," ms " )
@@ -244,13 +180,13 @@ best_k=0
 for k in range(2,20):
     tps1 = time.time()
     
-    distmatrix = euclidean_distances( data )
+    distmatrix = euclidean_distances( data_r15 )
     fp = kmedoids.fasterpam( distmatrix , k )
     tps2 = time.time()
     iter_kmed = fp.n_iter
     labels_kmed = fp.labels
     #print ( " Loss with FasterPAM : " , fp.loss )
-    plt.scatter ( f0 , f1 , c = labels_kmed , s = 8 )
+    plt.scatter ( f0_r15 , f1_r15 , c = labels_kmed , s = 8 )
     plt . title ( " Donnees apres clustering KMedoids " )
     plt . show ()
     #print ( " nb clusters = " ,k , " , nb iter = " , iter_kmed , " ,runtime = " , round (( tps2 - tps1 ) * 1000 , 2 ) ," ms " )
@@ -261,7 +197,7 @@ for k in range(2,20):
     
     
     #Silouhette index: the higher the index the better the clustering
-    score_sil.append(metrics.silhouette_score(data, labels_kmed, metric='euclidean'))
+    score_sil.append(metrics.silhouette_score(data_r15, labels_kmed, metric='euclidean'))
     
     #David Bouldin index: the lower the index the better the clustering
     #score_dav.append(davies_bouldin_score(data, labels))
