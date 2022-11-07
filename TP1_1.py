@@ -66,8 +66,8 @@ f1_donut1 = loaded_donut1["f1"]
 #%%
 #2. Clustering k-Means & k-Medoids
 #2.1 Pour démarrer
-# Function that performs the kmeans algorithm
 
+# Function that performs the kmeans algorithm
 def kmeans_iteration( loaded_data , k ):
     #print("Appel kMeans pour une valeur fixée de k")
     tps1 = time.time()
@@ -86,7 +86,7 @@ def kmeans_iteration( loaded_data , k ):
     d={}
     d["labels"]=labels
     d["iteration"]= iteration
-    d["tps"]= round((tps2-tps1),2)
+    d["tps"]= round((tps2-tps1)*1000,2)
     
     return d
 
@@ -115,7 +115,7 @@ def kmeans_evaluation_graph(method,loaded_data,max_k):
             break
         
         k_list.append(i)
-        runtime_list.append(km_return["tps"])
+        runtime_list.append(km_return["tps"]*0.01)
         
         #Silouhette index: the higher the index the better the clustering
         score_sil.append(metrics.silhouette_score(loaded_data["data"], km_return["labels"], metric='euclidean'))
@@ -129,7 +129,7 @@ def kmeans_evaluation_graph(method,loaded_data,max_k):
         
     plt.plot(k_list,score_sil,label ='Score Silhouette')
     plt.plot(k_list,score_dav, label ='Score Davies-Bouldin')
-    plt.plot(k_list,runtime_list,label ='Runtime (s)')
+    plt.plot(k_list,runtime_list,label ='Runtime (10**-1 s)')
     plt.legend()
     print(best,best_k)
 
@@ -151,8 +151,8 @@ kmeans_evaluation_graph("kmeans",loaded_spiral,35)
 
 #%%
 # 2.4 :Méthode k-medoids
-# data r15
 
+# Function that performs the kmedoids algorithm
 def kmedoids_iteration ( loaded_data , k ):
     tps1 = time.time()
 
@@ -170,7 +170,7 @@ def kmedoids_iteration ( loaded_data , k ):
     d={}
     d["labels"]=labels_kmed
     d["iteration"]= iter_kmed
-    d["tps"]= round((tps2-tps1),2)
+    d["tps"]= round((tps2-tps1)*1000,2)
     
     return d
 
@@ -209,61 +209,112 @@ shc.dendrogram(linked_mat,
                show_leaf_counts = False)
 plt.show()
 #%%
+
+# Function that performs the agglomerative algorithm
 def agglomerative_iteration (loaded_data , linkage, distance=None, k=None):
     
     tps1 = time.time()
     model = cluster.AgglomerativeClustering(distance_threshold = distance,
                                             linkage = linkage,
                                             n_clusters = k )
-    model = model.fit(data_r15)
+    model = model.fit(loaded_data["data"])
     tps2 = time.time()
     labels = model.labels_
     k = model.n_clusters_
     leaves =model.n_leaves_
     # Affichage clustering
-    plt.scatter(f0_r15,f1_r15,c = labels,s = 8 )
-    plt.title ("Resultat du clustering ")
+    plt.scatter(loaded_data["f0"],loaded_data["f1"],c = labels,s = 8 )
+    plt.title (" Donnees apres clustering Agglomeratif ")
     plt.show()
     print (" nb clusters = " ,k , " , linkage = " , linkage ," , nb feuilles = " , leaves ," runtime = " , round (( tps2 - tps1 ) * 1000 , 2 ) ," ms ", "distance = ",distance )
     
     d={}
-    d["tps"]=round (( tps2 - tps1 )*1000, 2 )
+    d["tps"]=round (( tps2 - tps1 )*1000,2 )
     d["k"]=k
     d["labels"]=labels
     d["leaves"]=leaves
     
     return d
     
-ret = agglomerative_iteration(loaded_r15,"single",distance = 0.46)
+ret = agglomerative_iteration(loaded_spiral,"single",distance = 0.46)
 
 #%%
 #set distance_threshold ( 0 ensures we compute the full tree )
 #Testing different distances
-linkage = ['single','average','complete', 'ward']
-single_t = []
-average_t = []
-complete_t = []
-ward_t = []
 
-for l in linkage:
-    for i in range(1, 100,4):
-        agg_return = agglomerative_iteration(loaded_r15,l,distance = i*0.1)
+#Function that given a linkage and a max_distance, tests different distances and plots the corresponding score
+def agglomerative_evaluation_graph_distance (loaded_data, linkage, max_distance): 
+    d_list = []
+    score_sil = []
+    score_dav = []
+    runtime_list=[]
+    best=0
+    best_k=0
+    
+    for i in range(1,max_distance*10):
         
-        if (l == 'single') :
-            single_t.append(agg_return["tps"])
-        if (l == 'average') :
-            average_t.append(agg_return["tps"])
-        if (l == 'complete') :
-            complete_t.append(agg_return["tps"])
-        if (l == 'ward') :
-            ward_t.append(agg_return["tps"])
-        if (agg_return["k"] == 1) :
-            break
+        agg_return = agglomerative_iteration(loaded_data,linkage,distance = i*0.1)
         
+        d_list.append(i)
+        runtime_list.append(agg_return["tps"]*0.01)
+        
+        #Silouhette index: the higher the index the better the clustering
+        score_sil.append(metrics.silhouette_score(loaded_data["data"], agg_return["labels"], metric='euclidean'))
+        
+        #Davies Bouldin index: the lower the index the better the clustering
+        score_dav.append(davies_bouldin_score(loaded_data["data"], agg_return["labels"]))
+        
+        if (score_sil[i-2] > best) :
+            best = score_sil[i-2]
+            best_k=i
+        
+    plt.plot(d_list,score_sil,label ='Score Silhouette')
+    plt.plot(d_list,score_dav, label ='Score Davies-Bouldin')
+    plt.plot(d_list,runtime_list,label ='Runtime (10**-1 s)')
+    plt.legend()
+    print(best,best_k)
+
+agglomerative_evaluation_graph_distance(loaded_r15,'single',2)
+
+#%%
+
+#Function that given a linkage and a max_k, tests different different number of clusters and plots the corresponding score
+def agglomerative_evaluation_graph_k (loaded_data, linkage, max_k): 
+    k_list = []
+    score_sil = []
+    score_dav = []
+    runtime_list=[]
+    best=0
+    best_k=0
+    
+    for i in range(2,max_k):
+        
+        agg_return = agglomerative_iteration(loaded_data,linkage,k = i)
+        
+        k_list.append(i)
+        runtime_list.append(agg_return["tps"]*0.01)
+        
+        #Silouhette index: the higher the index the better the clustering
+        score_sil.append(metrics.silhouette_score(loaded_data["data"], agg_return["labels"], metric='euclidean'))
+        
+        #Davies Bouldin index: the lower the index the better the clustering
+        score_dav.append(davies_bouldin_score(loaded_data["data"], agg_return["labels"]))
+        
+        if (score_sil[i-2] > best) :
+            best = score_sil[i-2]
+            best_k=i
+        
+    plt.plot(k_list,score_sil,label ='Score Silhouette')
+    plt.plot(k_list,score_dav, label ='Score Davies-Bouldin')
+    plt.plot(k_list,runtime_list,label ='Runtime (10**-1 s)')
+    plt.legend()
+    print(best,best_k)
+
+agglomerative_evaluation_graph_k(loaded_r15,'single',20)
 
 #%%
 # set the number of clusters
-ret = agglomerative_iteration(loaded_r15,"single",distance = None, k=15)
+ret = agglomerative_iteration(loaded_spiral,"single",distance = None, k=2)
 
 # same distance between clusters : aglomératif > kmeans
 # nuage de données : aglomeratif < kmeans
@@ -272,30 +323,54 @@ ret = agglomerative_iteration(loaded_r15,"single",distance = None, k=15)
 #4 Clustering DBSCAN et HDBSCAN
 #4.1
 
-clustering = DBSCAN(eps=3, min_samples=1).fit(data_r15)
-labels = clustering.labels_
-kres = clustering.n_clusters_
-plt.scatter(f0_r15,f1_r15,c = labels,s = 8 )
-plt.title ("Resultat du clustering ")
-plt.show()
-
-n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
-print("Estimated number of clusters: %d" % n_clusters_)
+# Function that performs the dbscan algorithm
+def dbscan_iteration (loaded_data , eps , min_samples):
+    
+    tps1 = time.time()
+    clustering = DBSCAN(eps=eps, min_samples=min_samples).fit(loaded_data["data"])
+    tps2 = time.time()
+    labels = clustering.labels_
+    # kres = clustering.n_clusters_
+    plt.scatter(loaded_data["f0"],loaded_data["f1"],c = labels,s = 8 )
+    plt.title ("Resultat du clustering ")
+    plt.show()
+    
+    k = len(set(labels)) - (1 if -1 in labels else 0)
+    print("For eps = %f and min_Estimated = %d, number of clusters: %d" % (eps, min_samples,k))
+    d={}
+    d["tps"]=round (( tps2 - tps1 )*1000, 2 )
+    d["k"]=k
+    d["labels"]=labels
+    
+    return d
+    
+#%%
+# Testing DBSCAN method with different values for min-sample and eps
+for min_samples in range(2,10):
+    for eps in range(1,20,2):
+        dbscan_iteration(loaded_r15, eps*0.1, min_samples)
+        
 
 #%%
-# Distances k plus proches voisins
-# Donnees dans X
-k = 5
-neigh = NearestNeighbors( n_neighbors = k )
-neigh.fit(data_r15)
-distances , indices = neigh.kneighbors(data_r15)
-# retirer le point " origine "
-newDistances = np.asarray([np.average(distances[i][1:] ) for i in range (0 , distances.shape[0])])
-trie = np.sort(newDistances)
-#plt.title("Plus proches voisins (5)")
-#plt.plot(trie) ;
-#plt.show()
 
+# Distances k plus proches voisins
+def neighbors_eps(loaded_data , k):
+    neigh = NearestNeighbors( n_neighbors = k )
+    neigh.fit(loaded_data["data"])
+    distances , indices = neigh.kneighbors(loaded_data["data"])
+    # retirer le point " origine "
+    newDistances = np.asarray([np.average(distances[i][1:] ) for i in range (0 , distances.shape[0])])
+    trie = np.sort(newDistances)
+    plt.title("Plus proches voisins (5)")
+    plt.plot(trie) ;
+    plt.show()
+
+
+neighbors_eps(loaded_spiral,5)
+#%%
+d = dbscan_iteration(loaded_spiral, 0.30, 5)
+
+#%%
 
 
 
