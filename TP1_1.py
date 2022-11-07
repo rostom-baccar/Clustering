@@ -271,6 +271,7 @@ def agglomerative_evaluation_graph_distance (loaded_data, linkage, max_distance)
     plt.plot(d_list,score_sil,label ='Score Silhouette')
     plt.plot(d_list,score_dav, label ='Score Davies-Bouldin')
     plt.plot(d_list,runtime_list,label ='Runtime (10**-1 s)')
+    plt.title("Evaluation selon la distance")
     plt.legend()
     print(best,best_k)
 
@@ -307,6 +308,7 @@ def agglomerative_evaluation_graph_k (loaded_data, linkage, max_k):
     plt.plot(k_list,score_sil,label ='Score Silhouette')
     plt.plot(k_list,score_dav, label ='Score Davies-Bouldin')
     plt.plot(k_list,runtime_list,label ='Runtime (10**-1 s)')
+    plt.title("Evaluation selon le nombre de cluster")
     plt.legend()
     print(best,best_k)
 
