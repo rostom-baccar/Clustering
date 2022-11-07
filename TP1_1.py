@@ -330,14 +330,15 @@ def agglomerative_evaluation_graph_k (loaded_data, linkage, max_k):
         runtime_list.append(agg_return["tps"]*0.01)
         
         #Silouhette index: the higher the index the better the clustering
-        score_sil.append(metrics.silhouette_score(loaded_data["data"], agg_return["labels"], metric='euclidean'))
+        sc_sil = metrics.silhouette_score(loaded_data["data"], agg_return["labels"], metric='euclidean')
+        score_sil.append(sc_sil)
         
         #Davies Bouldin index: the lower the index the better the clustering
         score_dav.append(davies_bouldin_score(loaded_data["data"], agg_return["labels"]))
         
-        if (score_sil[i-2] > best) :
-            best = score_sil[i-2]
-            best_k=i
+        if (sc_sil > best) :
+            best = sc_sil
+            best_k = i
         
     plt.plot(k_list,score_sil,label ='Score Silhouette')
     plt.plot(k_list,score_dav, label ='Score Davies-Bouldin')
@@ -397,9 +398,9 @@ def neighbors_eps(loaded_data , k):
     # retirer le point " origine "
     newDistances = np.asarray([np.average(distances[i][1:] ) for i in range (0 , distances.shape[0])])
     trie = np.sort(newDistances)
-    plt.title("Plus proches voisins (5)")
-    plt.plot(trie) ;
-    plt.show()
+    #plt.title("Plus proches voisins (5)")
+    #plt.plot(trie) ;
+    #plt.show()
     return max(trie)
 
 
@@ -408,7 +409,8 @@ neighbors_eps(loaded_spiral,5)
 m = neighbors_eps(loaded_simplex,5)
 print(m)
 #%%
-d = dbscan_iteration(loaded_simplex, m, 3)
+for i in range(2,25):
+    d = dbscan_iteration(loaded_simplex, m, i)
 
 #%%
 #4 Clustering DBSCAN et HDBSCAN
@@ -427,7 +429,7 @@ def hdbscan_iteration (loaded_data , min_samples):
     plt.show()
     
     k = len(set(labels)) - (1 if -1 in labels else 0)
-    print("For eps = %f and min_Estimated = %d, number of clusters: %d" % (eps, min_samples,k))
+    print("For min_Estimated = %d, number of clusters: %d" % (min_samples,k))
     d={}
     d["tps"]=round (( tps2 - tps1 )*1000, 2 )
     d["k"]=k
@@ -436,22 +438,104 @@ def hdbscan_iteration (loaded_data , min_samples):
     return d
 
 
-d= hdbscan_iteration(loaded_r15, 0.7, 5)
+d= hdbscan_iteration(loaded_r15, 5)
 
 
 
 #%%
 
+def dbscan_evaluation_graph(loaded_data , max_min_samples):
+    k_list = []
+    score_sil = []
+    score_dav = []
+    runtime_list=[]
+    best=0
+    best_min_samples=0
+    best_eps=0
+    best_n_clusters=0
+    
+    # Determine the potential best epsilon
+    
+    
+    for i in range(2,max_min_samples):
+        
+        # Determine the potential best epsilon
+        eps = neighbors_eps(loaded_data,i)
+        
+        db_return = dbscan_iteration(loaded_data,eps,i)
+        
+        if db_return["k"] <= 1 :
+            break
+        
+        k_list.append(i)
+        runtime_list.append(db_return["tps"]*0.01)
+        
+        #Silouhette index: the higher the index the better the clustering
+        sc_sil = metrics.silhouette_score(loaded_data["data"], db_return["labels"], metric='euclidean')
+        score_sil.append(sc_sil)
+        
+        #Davies Bouldin index: the lower the index the better the clustering
+        score_dav.append(davies_bouldin_score(loaded_data["data"], db_return["labels"]))
+        
+        if (sc_sil > best) :
+            best = sc_sil
+            best_min_samples = i
+            best_eps = m
+            best_n_clusters = db_return["k"]
+        
+    plt.plot(k_list,score_sil,label ='Score Silhouette')
+    plt.plot(k_list,score_dav, label ='Score Davies-Bouldin')
+    plt.plot(k_list,runtime_list,label ='Runtime (10**-1 s)')
+    plt.title("Evaluation selon le nombre de cluster")
+    plt.legend()
+    print("best score = ",best,", best min samples : ",best_min_samples,", best epsilon :",best_eps,", number of clusters : " ,best_n_clusters )
+    return [best_min_samples,best_eps,best]
+
+#%%
+dbscan_evaluation_graph(loaded_d31,50)
+
+#%%
+def hdbscan_evaluation_graph(loaded_data , max_min_samples):
+    k_list = []
+    score_sil = []
+    score_dav = []
+    runtime_list=[]
+    best=0
+    best_min_samples=0
+    
+    # Determine the potential best epsilon
+    
+    
+    for i in range(2,max_min_samples):
+        
+        db_return = hdbscan_iteration(loaded_data,i)
+        
+        k_list.append(i)
+        runtime_list.append(db_return["tps"]*0.01)
+        
+        #Silouhette index: the higher the index the better the clustering
+        sc_sil = metrics.silhouette_score(loaded_data["data"], db_return["labels"], metric='euclidean')
+        score_sil.append(sc_sil)
+        
+        #Davies Bouldin index: the lower the index the better the clustering
+        score_dav.append(davies_bouldin_score(loaded_data["data"], db_return["labels"]))
+        
+        if (sc_sil > best) :
+            best = sc_sil
+            best_min_samples = i
+            best_n_clusters = db_return["k"]
+        
+    plt.plot(k_list,score_sil,label ='Score Silhouette')
+    plt.plot(k_list,score_dav, label ='Score Davies-Bouldin')
+    plt.plot(k_list,runtime_list,label ='Runtime (10**-1 s)')
+    plt.title("Evaluation selon le nombre de cluster")
+    plt.legend()
+    print("best score = ",best,", best min samples : ",best_min_samples,", number of clusters : " ,best_n_clusters )
+    return [best_min_samples,best]
+#%%
 
 
-
-
-
-
-
-
-
-
+hdbscan_evaluation_graph(loaded_r15,20)
 
 
 
