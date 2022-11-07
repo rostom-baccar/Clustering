@@ -16,7 +16,8 @@ from sklearn.cluster import DBSCAN
 import hdbscan
 from sklearn.neighbors import NearestNeighbors
 from scipy.io import arff
-
+import os
+import pandas as pd
 #%%
 def load_arff_data (name ) :
     path = './Bureau/TP-Clustering/artificial/'
@@ -35,7 +36,29 @@ def load_arff_data (name ) :
     d["f1"] = f1
     
     return d
+
+#%%
+def load_txt_data (name) :
+    path = './Bureau/TP-Clustering/mysterious-data/'
+     
+    databrut = pd.read_csv(path+name, sep=" ", encoding= "ISO-8859-1", skipinitialspace=True)
     
+    data = databrut
+    datanp = data.to_numpy()
+
+    #Affichage 2D
+    f0 = [f[0] for f in datanp]
+    f1 = [f[1] for f in datanp]
+    plt.scatter(f0,f1,s=8)
+    plt.title("Données initiales")
+    plt.show()
+    d={}
+    d["data"] = datanp
+    d["f0"] = f0
+    d["f1"] = f1
+    return d
+
+
 #%%
 loaded_r15 = load_arff_data("R15")
 data_r15 = loaded_r15["data"]
@@ -62,7 +85,7 @@ data_donut1 = loaded_donut1["data"]
 f0_donut1 = loaded_donut1["f0"]
 f1_donut1 = loaded_donut1["f1"]
 
-
+loaded_x1 = load_txt_data("x1.txt")
 #%%
 #2. Clustering k-Means & k-Medoids
 #2.1 Pour démarrer
@@ -114,18 +137,19 @@ def kmeans_evaluation_graph(method,loaded_data,max_k):
             print("Method not recognized ! ")
             break
         
-        k_list.append(i)
-        runtime_list.append(km_return["tps"]*0.01)
         
+        runtime_list.append(km_return["tps"]*0.01)
+        k_list.append(i*0.1)
         #Silouhette index: the higher the index the better the clustering
-        score_sil.append(metrics.silhouette_score(loaded_data["data"], km_return["labels"], metric='euclidean'))
+        sc_sil = metrics.silhouette_score(loaded_data["data"], km_return["labels"], metric='euclidean')
+        score_sil.append(sc_sil)
         
         #Davies Bouldin index: the lower the index the better the clustering
         score_dav.append(davies_bouldin_score(loaded_data["data"], km_return["labels"]))
         
-        if (score_sil[i-2] > best) :
-            best = score_sil[i-2]
-            best_k=i
+        if (sc_sil > best) :
+            best = sc_sil
+            best_k= i
         
     plt.plot(k_list,score_sil,label ='Score Silhouette')
     plt.plot(k_list,score_dav, label ='Score Davies-Bouldin')
@@ -235,15 +259,16 @@ def agglomerative_iteration (loaded_data , linkage, distance=None, k=None):
     d["leaves"]=leaves
     
     return d
-    
-ret = agglomerative_iteration(loaded_spiral,"single",distance = 0.46)
+
+#%%
+ret = agglomerative_iteration(loaded_simplex,"single",distance = 0.3)
 
 #%%
 #set distance_threshold ( 0 ensures we compute the full tree )
 #Testing different distances
 
 #Function that given a linkage and a max_distance, tests different distances and plots the corresponding score
-def agglomerative_evaluation_graph_distance (loaded_data, linkage, max_distance): 
+def agglomerative_evaluation_graph_distance (loaded_data, linkage, min_distance, max_distance, step): 
     d_list = []
     score_sil = []
     score_dav = []
@@ -251,22 +276,28 @@ def agglomerative_evaluation_graph_distance (loaded_data, linkage, max_distance)
     best=0
     best_k=0
     
-    for i in range(1,max_distance*10):
+    
+    for i in range(min_distance,max_distance,step):
         
         agg_return = agglomerative_iteration(loaded_data,linkage,distance = i*0.1)
         
-        d_list.append(i*0.1)
-        runtime_list.append(agg_return["tps"]*0.01)
         
+        if agg_return["k"] == 1 :
+            continue
+        
+        runtime_list.append(agg_return["tps"]*0.01)
+        d_list.append(i*0.1)
         #Silouhette index: the higher the index the better the clustering
-        score_sil.append(metrics.silhouette_score(loaded_data["data"], agg_return["labels"], metric='euclidean'))
+        sc_sil = metrics.silhouette_score(loaded_data["data"], agg_return["labels"], metric='euclidean')
+        score_sil.append(sc_sil)
         
         #Davies Bouldin index: the lower the index the better the clustering
         score_dav.append(davies_bouldin_score(loaded_data["data"], agg_return["labels"]))
         
-        if (score_sil[i-2] > best) :
-            best = score_sil[i-2]
-            best_k=i
+        if (sc_sil > best) :
+            best = sc_sil
+            best_k=agg_return["k"]
+        
         
     plt.plot(d_list,score_sil,label ='Score Silhouette')
     plt.plot(d_list,score_dav, label ='Score Davies-Bouldin')
@@ -274,8 +305,11 @@ def agglomerative_evaluation_graph_distance (loaded_data, linkage, max_distance)
     plt.title("Evaluation selon la distance")
     plt.legend()
     print(best,best_k)
+    
+    
 
-agglomerative_evaluation_graph_distance(loaded_r15,'single',2)
+#%%
+agglomerative_evaluation_graph_distance(loaded_x1,'single',100000,1000000,100000)
 
 #%%
 
@@ -366,11 +400,15 @@ def neighbors_eps(loaded_data , k):
     plt.title("Plus proches voisins (5)")
     plt.plot(trie) ;
     plt.show()
+    return max(trie)
 
 
 neighbors_eps(loaded_spiral,5)
 #%%
-d = dbscan_iteration(loaded_spiral, 0.30, 5)
+m = neighbors_eps(loaded_simplex,5)
+print(m)
+#%%
+d = dbscan_iteration(loaded_simplex, m, 3)
 
 #%%
 #4 Clustering DBSCAN et HDBSCAN
