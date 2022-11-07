@@ -27,7 +27,7 @@ def load_arff_data (name ) :
     f0 = [f[0] for f in data]
     f1 = [f[1] for f in data]
     plt.scatter(f0,f1,s=8)
-    plt.title("Données initiales")
+    plt.title("Données initiales "+name)
     plt.show()
     d={}
     d["data"] = data
@@ -255,7 +255,7 @@ def agglomerative_evaluation_graph_distance (loaded_data, linkage, max_distance)
         
         agg_return = agglomerative_iteration(loaded_data,linkage,distance = i*0.1)
         
-        d_list.append(i)
+        d_list.append(i*0.1)
         runtime_list.append(agg_return["tps"]*0.01)
         
         #Silouhette index: the higher the index the better the clustering
@@ -371,11 +371,36 @@ neighbors_eps(loaded_spiral,5)
 d = dbscan_iteration(loaded_spiral, 0.30, 5)
 
 #%%
+#4 Clustering DBSCAN et HDBSCAN
+#4.1
+
+# Function that performs the dbscan algorithm
+def hdbscan_iteration (loaded_data , min_samples):
+    
+    tps1 = time.time()
+    clustering = hdbscan.HDBSCAN(min_samples=min_samples).fit(loaded_data["data"])
+    tps2 = time.time()
+    labels = clustering.labels_
+    # kres = clustering.n_clusters_
+    plt.scatter(loaded_data["f0"],loaded_data["f1"],c = labels,s = 8 )
+    plt.title ("Resultat du clustering ")
+    plt.show()
+    
+    k = len(set(labels)) - (1 if -1 in labels else 0)
+    print("For eps = %f and min_Estimated = %d, number of clusters: %d" % (eps, min_samples,k))
+    d={}
+    d["tps"]=round (( tps2 - tps1 )*1000, 2 )
+    d["k"]=k
+    d["labels"]=labels
+    
+    return d
+
+
+d= hdbscan_iteration(loaded_r15, 0.7, 5)
 
 
 
-
-
+#%%
 
 
 
