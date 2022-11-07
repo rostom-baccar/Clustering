@@ -108,8 +108,11 @@ def kmeans_evaluation_graph(method,loaded_data,max_k):
         
         if (method == "kmeans") :
             km_return = kmeans_iteration(loaded_data,i)
-        else :
+        elif (method == "kmedoids"):
             km_return = kmedoids_iteration(loaded_data,i)
+        else : 
+            print("Method not recognized ! ")
+            break
         
         k_list.append(i)
         runtime_list.append(km_return["tps"])
@@ -140,7 +143,7 @@ kmeans_evaluation_graph("kmeans",loaded_r15,25)
 # 2.3 : Limits k-Means
 # Dataset spiral
 
-kmeans_evaluation_graph(loaded_spiral,35)
+kmeans_evaluation_graph("kmeans",loaded_spiral,35)
 
 # For this dataset, the greater the cluster number the greater the score returned by silouhette method, which is not true because 
 # the optimal number of clusters is 2
@@ -189,7 +192,7 @@ kmeans_return = kmeans_iteration(loaded_r15, 3)
 kmedoids_return = kmedoids_iteration(loaded_r15, 3)
 
 # Rand_score application
-print("rand_score: ",metrics.rand_score(labels_k_means, labels_kmed))
+print("rand_score: ",metrics.rand_score(kmeans_return["labels"], kmedoids_return["labels"]))
 
 
 #%%
@@ -206,11 +209,12 @@ shc.dendrogram(linked_mat,
                show_leaf_counts = False)
 plt.show()
 #%%
-def agglomerative_iteration (loaded_data, k ,distance, linkage):
+def agglomerative_iteration (loaded_data , linkage, distance=None, k=None):
+    
     tps1 = time.time()
-    model = cluster.AgglomerativeClustering(distance_threshold = i*0.1,
-                                            linkage = l,
-                                            n_clusters = None )
+    model = cluster.AgglomerativeClustering(distance_threshold = distance,
+                                            linkage = linkage,
+                                            n_clusters = k )
     model = model.fit(data_r15)
     tps2 = time.time()
     labels = model.labels_
@@ -220,12 +224,17 @@ def agglomerative_iteration (loaded_data, k ,distance, linkage):
     plt.scatter(f0_r15,f1_r15,c = labels,s = 8 )
     plt.title ("Resultat du clustering ")
     plt.show()
-    #print (" nb clusters = " ,k , " , nb feuilles = " , leaves ," runtime = " , round (( tps2 - tps1 ) * 1000 , 2 ) ," ms ", "distance = ",i*0.1 )
+    print (" nb clusters = " ,k , " , linkage = " , linkage ," , nb feuilles = " , leaves ," runtime = " , round (( tps2 - tps1 ) * 1000 , 2 ) ," ms ", "distance = ",distance )
     
     d={}
-    d["tps"]=round (( tps2 - tps1 ), 2 )
+    d["tps"]=round (( tps2 - tps1 )*1000, 2 )
     d["k"]=k
-
+    d["labels"]=labels
+    d["leaves"]=leaves
+    
+    return d
+    
+ret = agglomerative_iteration(loaded_r15,"single",distance = 0.46)
 
 #%%
 #set distance_threshold ( 0 ensures we compute the full tree )
@@ -237,53 +246,24 @@ complete_t = []
 ward_t = []
 
 for l in linkage:
-    print("Linkage ",l)
-    for i in range(1, 200,4):
-        tps1 = time.time()
-        model = cluster.AgglomerativeClustering(distance_threshold = i*0.1,
-                                                linkage = l,
-                                                n_clusters = None )
-        model = model.fit(data_r15)
-        tps2 = time.time()
-        labels = model.labels_
-        k = model.n_clusters_
-        leaves =model.n_leaves_
-        # Affichage clustering
-        plt.scatter(f0_r15,f1_r15,c = labels,s = 8 )
-        plt.title ("Resultat du clustering ")
-        plt.show()
-        print (" nb clusters = " ,k , " , nb feuilles = " , leaves ," runtime = " , round (( tps2 - tps1 ) * 1000 , 2 ) ," ms ", "distance = ",i*0.1 )
+    for i in range(1, 100,4):
+        agg_return = agglomerative_iteration(loaded_r15,l,distance = i*0.1)
+        
         if (l == 'single') :
-            single_t.append(round (( tps2 - tps1 ) * 1000 , 2 ))
+            single_t.append(agg_return["tps"])
         if (l == 'average') :
-            average_t.append(round (( tps2 - tps1 ) * 1000 , 2 ))
+            average_t.append(agg_return["tps"])
         if (l == 'complete') :
-            complete_t.append(round (( tps2 - tps1 ) * 1000 , 2 ))
+            complete_t.append(agg_return["tps"])
         if (l == 'ward') :
-            ward_t.append(round (( tps2 - tps1 ) * 1000 , 2 ))
-        if (k == 1) :
+            ward_t.append(agg_return["tps"])
+        if (agg_return["k"] == 1) :
             break
         
-print ("single : ", single_t)
-print ("average : ", average_t)
-print ("complete : ", complete_t)
-print ("ward : ", ward_t)
+
 #%%
 # set the number of clusters
-k = 4
-tps1 = time.time()
-model = cluster.AgglomerativeClustering(linkage = 'single',
-                                        n_clusters = k )
-model = model.fit(data)
-tps2 = time.time()
-labels = model.labels_
-kres = model.n_clusters_
-leaves = model.n_leaves_
-# Affichage clustering
-plt.scatter(f0,f1,c = labels,s = 8 )
-plt.title ("Resultat du clustering ")
-plt.show()
-print (" nb clusters = " ,k , " , nb feuilles = " , leaves ," runtime = " , round (( tps2 - tps1 ) * 1000 , 2 ) ," ms " )
+ret = agglomerative_iteration(loaded_r15,"single",distance = None, k=15)
 
 # same distance between clusters : aglomératif > kmeans
 # nuage de données : aglomeratif < kmeans
@@ -292,22 +272,23 @@ print (" nb clusters = " ,k , " , nb feuilles = " , leaves ," runtime = " , roun
 #4 Clustering DBSCAN et HDBSCAN
 #4.1
 
-clustering = DBSCAN(eps=3, min_samples=1).fit(data)
+clustering = DBSCAN(eps=3, min_samples=1).fit(data_r15)
 labels = clustering.labels_
 kres = clustering.n_clusters_
-plt.scatter(f0,f1,c = labels,s = 8 )
+plt.scatter(f0_r15,f1_r15,c = labels,s = 8 )
 plt.title ("Resultat du clustering ")
 plt.show()
 
 n_clusters_ = len(set(labels)) - (1 if -1 in labels else 0)
 print("Estimated number of clusters: %d" % n_clusters_)
 
+#%%
 # Distances k plus proches voisins
 # Donnees dans X
 k = 5
 neigh = NearestNeighbors( n_neighbors = k )
-neigh.fit(data)
-distances , indices = neigh.kneighbors(data)
+neigh.fit(data_r15)
+distances , indices = neigh.kneighbors(data_r15)
 # retirer le point " origine "
 newDistances = np.asarray([np.average(distances[i][1:] ) for i in range (0 , distances.shape[0])])
 trie = np.sort(newDistances)
