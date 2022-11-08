@@ -16,8 +16,8 @@ from sklearn.cluster import DBSCAN
 import hdbscan
 from sklearn.neighbors import NearestNeighbors
 from scipy.io import arff
+import os
 import pandas as pd
-
 #%%
 def load_arff_data (name ) :
     path = './Bureau/TP-Clustering/artificial/'
@@ -36,7 +36,29 @@ def load_arff_data (name ) :
     d["f1"] = f1
     
     return d
+
+#%%
+def load_txt_data (name,i) :
+    path = './Bureau/TP-Clustering/mysterious-data/'
+     
+    databrut = pd.read_csv(path+name, sep=" ", encoding= "ISO-8859-1", skipinitialspace=True)
     
+    data = databrut
+    datanp = data.to_numpy()
+
+    #Affichage 2D
+    f0 = [f[0] for f in datanp]
+    f1 = [f[1] for f in datanp]
+    plt.scatter(f0,f1,s=8)
+    plt.title("Données Mystères "+str(i))
+    plt.show()
+    d={}
+    d["data"] = datanp
+    d["f0"] = f0
+    d["f1"] = f1
+    return d
+
+
 #%%
 loaded_r15 = load_arff_data("R15")
 data_r15 = loaded_r15["data"]
@@ -63,7 +85,7 @@ data_donut1 = loaded_donut1["data"]
 f0_donut1 = loaded_donut1["f0"]
 f1_donut1 = loaded_donut1["f1"]
 
-
+loaded_x1 = load_txt_data("x1.txt")
 #%%
 #2. Clustering k-Means & k-Medoids
 #2.1 Pour démarrer
@@ -80,7 +102,7 @@ def kmeans_iteration( loaded_data , k ):
     iteration=model.n_iter_
     
     plt.scatter(loaded_data["f0"], loaded_data["f1"], c=labels, s=8)
-    plt.title("Clustering KMeans - k = "+str(k))
+    plt.title("Kmeans Clustering / k = "+str(k))
     plt.show()
     #print("nb clusters=",k," nb_iter=",iteration, "runtime=",round((tps2-tps1)*1000,2),"ms")
     
@@ -115,24 +137,26 @@ def kmeans_evaluation_graph(method,loaded_data,max_k):
             print("Method not recognized ! ")
             break
         
-        k_list.append(i)
-        runtime_list.append(km_return["tps"]*0.01)
         
+        runtime_list.append(km_return["tps"]*0.01)
+        k_list.append(i*0.1)
         #Silouhette index: the higher the index the better the clustering
-        score_sil.append(metrics.silhouette_score(loaded_data["data"], km_return["labels"], metric='euclidean'))
+        sc_sil = metrics.silhouette_score(loaded_data["data"], km_return["labels"], metric='euclidean')
+        score_sil.append(sc_sil)
         
         #Davies Bouldin index: the lower the index the better the clustering
         score_dav.append(davies_bouldin_score(loaded_data["data"], km_return["labels"]))
         
-        if (score_sil[i-2] > best) :
-            best = score_sil[i-2]
-            best_k=i
+        if (sc_sil > best) :
+            best = sc_sil
+            best_k= i
         
-    plt.plot(k_list,score_sil,label ='Score Silhouette')
-    plt.plot(k_list,score_dav, label ='Score Davies-Bouldin')
-    plt.plot(k_list,runtime_list,label ='Runtime (10**-1 s)')
-    plt.legend()
+    #plt.plot(k_list,score_sil,label ='Score Silhouette')
+    #plt.plot(k_list,score_dav, label ='Score Davies-Bouldin')
+    #plt.plot(k_list,runtime_list,label ='Runtime (10**-1 s)')
+    #plt.legend()
     print(best,best_k)
+    return best_k
 
 #25
 
@@ -164,7 +188,7 @@ def kmedoids_iteration ( loaded_data , k ):
     labels_kmed = fp.labels
     #print ( " Loss with FasterPAM : " , fp.loss )
     plt . scatter ( loaded_data["f0"] , loaded_data["f1"] , c = labels_kmed , s = 8 )
-    plt . title ( "Clustering KMedoids - k = "+str(k) )
+    plt.title("KMedoids Clustering / k = "+str(k))
     plt . show ()
     #print ( " nb clusters = " ,k , " , nb iter = " , iter_kmed , " ,runtime = " , round (( tps2 - tps1 ) * 1000 , 2 ) ," ms " )
     
@@ -179,7 +203,7 @@ def kmedoids_iteration ( loaded_data , k ):
 
 #%%
 #Testing different evaluation metricson kmedoids
-#kmeans_evaluation_graph("kmedoids",loaded_r15,20)
+kmeans_evaluation_graph("kmedoids",loaded_r15,20)
 
 
 #%%
@@ -225,7 +249,7 @@ def agglomerative_iteration (loaded_data , linkage, distance=None, k=None):
     leaves =model.n_leaves_
     # Affichage clustering
     plt.scatter(loaded_data["f0"],loaded_data["f1"],c = labels,s = 8 )
-    plt.title ("Clustering Agglomératif - Mode "+linkage+ " distance = "+str(distance))
+    plt.title("Clustering Agglomératif / linkage "+str(linkage)+" / distance = "+str(distance)+" / k = "+str(k))
     plt.show()
     print (" nb clusters = " ,k , " , linkage = " , linkage ," , nb feuilles = " , leaves ," runtime = " , round (( tps2 - tps1 ) * 1000 , 2 ) ," ms ", "distance = ",distance )
     
@@ -236,47 +260,60 @@ def agglomerative_iteration (loaded_data , linkage, distance=None, k=None):
     d["leaves"]=leaves
     
     return d
-    
-#ret = agglomerative_iteration(loaded_spiral,"single",distance = 0.46)
+
+#%%
+ret = agglomerative_iteration(loaded_simplex,"single",distance = 0.3)
 
 #%%
 #set distance_threshold ( 0 ensures we compute the full tree )
 #Testing different distances
 
 #Function that given a linkage and a max_distance, tests different distances and plots the corresponding score
-def agglomerative_evaluation_graph_distance (loaded_data, linkage, max_distance): 
+def agglomerative_evaluation_graph_distance (loaded_data, linkage, min_distance, max_distance, step): 
     d_list = []
     score_sil = []
     score_dav = []
     runtime_list=[]
     best=0
     best_k=0
+    best_distance=0
     
-    for i in range(1,max_distance*10):
+    
+    for i in range(min_distance,max_distance,step):
         
         agg_return = agglomerative_iteration(loaded_data,linkage,distance = i*0.1)
         
-        d_list.append(i*0.1)
-        runtime_list.append(agg_return["tps"]*0.01)
         
+        if agg_return["k"] == 1 :
+            continue
+        
+        runtime_list.append(agg_return["tps"]*0.01)
+        d_list.append(i*0.1)
         #Silouhette index: the higher the index the better the clustering
-        score_sil.append(metrics.silhouette_score(loaded_data["data"], agg_return["labels"], metric='euclidean'))
+        sc_sil = metrics.silhouette_score(loaded_data["data"], agg_return["labels"], metric='euclidean')
+        score_sil.append(sc_sil)
         
         #Davies Bouldin index: the lower the index the better the clustering
         score_dav.append(davies_bouldin_score(loaded_data["data"], agg_return["labels"]))
         
-        if (score_sil[i-2] > best) :
-            best = score_sil[i-2]
-            best_k=i
+        if (sc_sil > best) :
+            best = sc_sil
+            best_k=agg_return["k"]
+            best_distance=i*0.1
         
-    plt.plot(d_list,score_sil,label ='Score Silhouette')
-    plt.plot(d_list,score_dav, label ='Score Davies-Bouldin')
-    plt.plot(d_list,runtime_list,label ='Runtime (10**-1 s)')
-    plt.title("Evaluation selon la distance")
-    plt.legend()
-    print(best,best_k)
+        
+    #plt.plot(d_list,score_sil,label ='Score Silhouette')
+    #plt.plot(d_list,score_dav, label ='Score Davies-Bouldin')
+    #plt.plot(d_list,runtime_list,label ='Runtime (10**-1 s)')
+    #plt.title("Evaluation selon la distance")
+    #plt.legend()
+    #print(best,best_k)
+    return best_distance
+    
+    
 
-#agglomerative_evaluation_graph_distance(loaded_r15,'single',2)
+#%%
+#agglomerative_evaluation_graph_distance(loaded_x1,'single',100000,1000000,100000)
 
 #%%
 
@@ -306,11 +343,11 @@ def agglomerative_evaluation_graph_k (loaded_data, linkage, max_k):
             best = score_sil[i-2]
             best_k=i
         
-    plt.plot(k_list,score_sil,label ='Score Silhouette')
-    plt.plot(k_list,score_dav, label ='Score Davies-Bouldin')
-    plt.plot(k_list,runtime_list,label ='Runtime (10**-1 s)')
-    plt.title("Evaluation selon le nombre de cluster")
-    plt.legend()
+    #plt.plot(k_list,score_sil,label ='Score Silhouette')
+    #plt.plot(k_list,score_dav, label ='Score Davies-Bouldin')
+    #plt.plot(k_list,runtime_list,label ='Runtime (10**-1 s)')
+    #plt.title("Evaluation selon le nombre de cluster")
+    #plt.legend()
     print(best,best_k)
 
 #agglomerative_evaluation_graph_k(loaded_r15,'single',20)
@@ -322,7 +359,6 @@ def agglomerative_evaluation_graph_k (loaded_data, linkage, max_k):
 # same distance between clusters : aglomératif > kmeans
 # nuage de données : aglomeratif < kmeans
 
-#%%
 #4 Clustering DBSCAN et HDBSCAN
 #4.1
 
@@ -335,10 +371,9 @@ def dbscan_iteration (loaded_data , eps , min_samples):
     labels = clustering.labels_
     # kres = clustering.n_clusters_
     plt.scatter(loaded_data["f0"],loaded_data["f1"],c = labels,s = 8 )
-    plt.title ("Clustering DBSCAN - eps = "+str(eps)+" min_samples = "+str(min_samples))
-    plt.show()
-    
     k = len(set(labels)) - (1 if -1 in labels else 0)
+    plt.title ("DBSCAN Clustering | eps = "+str(eps)+" | min_samples = "+str(min_samples)+" | k = "+str(k))
+    plt.show()
     print("For eps = %f and min_Estimated = %d, number of clusters: %d" % (eps, min_samples,k))
     d={}
     d["tps"]=round (( tps2 - tps1 )*1000, 2 )
@@ -349,9 +384,9 @@ def dbscan_iteration (loaded_data , eps , min_samples):
     
 #%%
 # Testing DBSCAN method with different values for min-sample and eps
-for min_samples in range(2,10):
-    for eps in range(1,20,2):
-        dbscan_iteration(loaded_r15, eps*0.1, min_samples)
+#for min_samples in range(2,10):
+#    for eps in range(1,20,2):
+#        dbscan_iteration(loaded_r15, eps*0.1, min_samples)
         
 
 #%%
@@ -364,14 +399,19 @@ def neighbors_eps(loaded_data , k):
     # retirer le point " origine "
     newDistances = np.asarray([np.average(distances[i][1:] ) for i in range (0 , distances.shape[0])])
     trie = np.sort(newDistances)
-    plt.title("Plus proches voisins (5)")
-    plt.plot(trie) ;
-    plt.show()
+    #plt.title("Plus proches voisins (5)")
+    #plt.plot(trie) ;
+    #plt.show()
+    return max(trie)
 
 
-#neighbors_eps(loaded_spiral,5)
+neighbors_eps(loaded_spiral,5)
 #%%
-#d = dbscan_iteration(loaded_spiral, 0.30, 5)
+#m = neighbors_eps(loaded_simplex,5)
+#print(m)
+#%%
+#for i in range(2,25):
+#    d = dbscan_iteration(loaded_simplex, m, i)
 
 #%%
 #4 Clustering DBSCAN et HDBSCAN
@@ -386,11 +426,10 @@ def hdbscan_iteration (loaded_data , min_samples):
     labels = clustering.labels_
     # kres = clustering.n_clusters_
     plt.scatter(loaded_data["f0"],loaded_data["f1"],c = labels,s = 8 )
-    plt.title ("Clustering HDBSCAN - min_samples = "+str(min_samples))
-    plt.show()
-    
     k = len(set(labels)) - (1 if -1 in labels else 0)
-    print("For eps = %f and min_Estimated = %d, number of clusters: %d" % (eps, min_samples,k))
+    plt.title ("HDBSCAN Clustering | min_samples = "+str(min_samples)+" | k = "+str(k))
+    plt.show()
+    print("For min_Estimated = %d, number of clusters: %d" % (min_samples,k))
     d={}
     d["tps"]=round (( tps2 - tps1 )*1000, 2 )
     d["k"]=k
@@ -399,11 +438,101 @@ def hdbscan_iteration (loaded_data , min_samples):
     return d
 
 
-#d= hdbscan_iteration(loaded_r15, 0.7, 5)
+#d= hdbscan_iteration(loaded_r15, 5)
 
 
 
 #%%
+
+def dbscan_evaluation_graph(loaded_data , max_min_samples):
+    k_list = []
+    score_sil = []
+    score_dav = []
+    runtime_list=[]
+    best=0
+    best_min_samples=0
+    best_eps=0
+    best_n_clusters=0
+    
+    # Determine the potential best epsilon
+    
+    
+    for i in range(2,max_min_samples):
+        
+        # Determine the potential best epsilon
+        eps = neighbors_eps(loaded_data,i)
+        
+        db_return = dbscan_iteration(loaded_data,eps,i)
+        
+        if db_return["k"] <= 1 :
+            break
+        
+        k_list.append(i)
+        runtime_list.append(db_return["tps"]*0.01)
+        
+        #Silouhette index: the higher the index the better the clustering
+        sc_sil = metrics.silhouette_score(loaded_data["data"], db_return["labels"], metric='euclidean')
+        score_sil.append(sc_sil)
+        
+        #Davies Bouldin index: the lower the index the better the clustering
+        score_dav.append(davies_bouldin_score(loaded_data["data"], db_return["labels"]))
+        
+        if (sc_sil > best) :
+            best = sc_sil
+            best_min_samples = i
+            best_eps = m
+            best_n_clusters = db_return["k"]
+        
+    #plt.plot(k_list,score_sil,label ='Score Silhouette')
+    #plt.plot(k_list,score_dav, label ='Score Davies-Bouldin')
+    #plt.plot(k_list,runtime_list,label ='Runtime (10**-1 s)')
+    #plt.title("Evaluation selon le nombre de cluster")
+    #plt.legend()
+    print("best score = ",best,", best min samples : ",best_min_samples,", best epsilon :",best_eps,", number of clusters : " ,best_n_clusters )
+    return [best_eps,best_min_samples,best]
+
+#%%
+#dbscan_evaluation_graph(loaded_d31,50)
+
+#%%
+def hdbscan_evaluation_graph(loaded_data , max_min_samples):
+    k_list = []
+    score_sil = []
+    score_dav = []
+    runtime_list=[]
+    best=0
+    best_min_samples=0
+    
+    # Determine the potential best epsilon
+    
+    
+    for i in range(2,max_min_samples):
+        
+        db_return = hdbscan_iteration(loaded_data,i)
+        
+        k_list.append(i)
+        runtime_list.append(db_return["tps"]*0.01)
+        
+        #Silouhette index: the higher the index the better the clustering
+        sc_sil = metrics.silhouette_score(loaded_data["data"], db_return["labels"], metric='euclidean')
+        score_sil.append(sc_sil)
+        
+        #Davies Bouldin index: the lower the index the better the clustering
+        score_dav.append(davies_bouldin_score(loaded_data["data"], db_return["labels"]))
+        
+        if (sc_sil > best) :
+            best = sc_sil
+            best_min_samples = i
+            best_n_clusters = db_return["k"]
+        
+    #plt.plot(k_list,score_sil,label ='Score Silhouette')
+    #plt.plot(k_list,score_dav, label ='Score Davies-Bouldin')
+    #plt.plot(k_list,runtime_list,label ='Runtime (10**-1 s)')
+    #plt.title("Evaluation selon le nombre de cluster")
+    #plt.legend()
+    print("best score = ",best,", best min samples : ",best_min_samples,", number of clusters : " ,best_n_clusters )
+    return [best_min_samples,best]
+
 
 #%%
 #Visualisation de toutes les données
@@ -425,7 +554,7 @@ for filename in os.listdir(directory):
 def load_txt_data (name) :
     path = './Bureau/TP-Clustering/mysterious-data/'
      
-    databrut = pd.read_csv(path+name+".txt", sep=" ", encoding= "ISO-8859-1", skipinitialspace=True)
+    databrut = pd.read_csv(path+name, sep=" ", encoding= "ISO-8859-1", skipinitialspace=True)
     
     data = databrut
     datanp = data.to_numpy()
@@ -482,30 +611,44 @@ for filename in os.listdir(directory):
     f = os.path.join(directory, filename)
     # checking if it is a file
     if os.path.isfile(f):
+        i+=1
         print(filename)
-        load_txt_data(filename,)
+        load_txt_data(filename,i)
 #%%
 #Loading mystery data
-loaded_dm1 = load_txt_data("x1")
-loaded_dm2 = load_txt_data("x2")
-loaded_dm3 = load_txt_data("x3")
-loaded_dm4 = load_txt_data("x4")
-loaded_dm5 = load_txt_data("y1")
-loaded_dm6 = load_txt_data("zz1")
-loaded_dm7 = load_txt_data("zz2")
+loaded_dm1 = load_txt_data("x1.txt")
+loaded_dm2 = load_txt_data("x2.txt")
+loaded_dm3 = load_txt_data("x3.txt")
+loaded_dm4 = load_txt_data("x4.txt")
+loaded_dm5 = load_txt_data("y1.txt")
+loaded_dm6 = load_txt_data("zz1.txt")
+loaded_dm7 = load_txt_data("zz2.txt")
 #%%
 def mystery_data_cluster(loaded_data):
-    #Load data
-    loaded_data=loaded_dm1
-    
     #Determining best parameters
+    max_k=30
+    linkage='complete'
+    max_min_samples=20
     
-    #Clustering with different methods
-    kmeans_iteration(loaded_data, k)
-    kmedoids_iteration(loaded_data, k)
-    agglomerative_iteration(loaded_data, linkage, distance)
-    dbscan_iteration(loaded_data, eps, min_samples)
-    hdbscan_iteration(loaded_data, min_samples)
+    #best_kmeans=kmeans_evaluation_graph('kmeans', loaded_data, max_k)
+    #kmeans_iteration(loaded_data, best_kmeans)
+    
+    best_kmedoids=kmeans_evaluation_graph('kmedoids', loaded_data, max_k)
+    ²kmedoids_iteration(loaded_data, best_kmedoids)
+
+    #best_distance=agglomerative_evaluation_graph_distance(loaded_data, linkage, 100000,8800000,100000)
+    #print('best distance is '+str(best_distance))
+    #agglomerative_iteration(loaded_data, linkage, best_distance)
+    
+    #dbscan_list=dbscan_evaluation_graph(loaded_data,max_min_samples)
+    #best_eps=dbscan_list[0]
+    #best_min_samples_dbscan=dbscan_list[1]
+    #dbscan_iteration(loaded_data,best_eps,best_min_samples_dbscan)
+    
+    #hdbscan_list=hdbscan_evaluation_graph(loaded_data,max_min_samples)
+    #best_min_samples_hdbscan=hdbscan_list[0]
+    #hdbscan_iteration(loaded_data,best_min_samples_hdbscan)
+    
     return None
-#%%
-mystery_data_cluster(loaded_dm1) 
+
+mystery_data_cluster(loaded_dm6) 
